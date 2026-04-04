@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "FastAPI Router",
+      "runtimeExecutable": "uvicorn",
+      "runtimeArgs": ["api:app", "--host", "0.0.0.0", "--port", "8000", "--reload"],
+      "port": 8000
+    },
+    {
+      "name": "Telegram Bot",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["telegram_bot.py"],
+      "port": 8000
+    },
+    {
+      "name": "Node CLI",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--watch", "index.js"],
+      "port": 3000
+    }
+  ]
+}

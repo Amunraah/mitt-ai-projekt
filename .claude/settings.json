@@ -1,0 +1,39 @@
+{
+  "model": "claude-3-5-sonnet-20251022",
+  "context": {
+    "maxTokens": 500000,
+    "autoCompactPct": 75
+  },
+  "editor": {
+    "lineLength": 100,
+    "autoFormat": true,
+    "autoSave": true
+  },
+  "launchPreviewPersistWorkspaces": ["${workspaceFolder}"],
+  "coreScheduledTasksEnabled": true,
+  "sideBarMode": "code",
+  "bypassBouncerEnabled": true,
+  "cookWebSearchEnabled": true,
+  "chicagoEnabled": true,
+  "tools": {
+    "enableTerminal": true,
+    "enableFileSearch": true,
+    "enableCodebase": true
+  },
+  "plugins": [
+    "github",
+    "n8n-mcp",
+    "supabase-mcp"
+  ],
+  "skills": [
+    "spec-driven-feature",
+    "code-reviewer", 
+    "prompt-optimizer",
+    "system-architect"
+  ],
+  "preferences": {
+    "language": "svenska",
+    "responseStyle": "concise-buildable",
+    "tokenEconomy": true
+  }
+}
