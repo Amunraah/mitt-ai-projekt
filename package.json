@@ -1,0 +1,15 @@
+{
+  "name": "mitt-ai-projekt",
+  "version": "1.0.0",
+  "description": "AI project with OpenRouter - switch between Hermes, Claude, Qwen",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "openai": "^4.0.0",
+    "dotenv": "^16.0.0"
+  }
+}

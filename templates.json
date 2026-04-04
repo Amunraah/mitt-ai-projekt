@@ -1,0 +1,38 @@
+[
+  {
+    "name": "bokning-tid",
+    "trigger": ["när", "tid", "kommer", "ledigt", "tillgänglig", "boka", "bokning"],
+    "body": "Hej {{name}}! Vi har ledigt {{next_slot}}. Boka direkt här: {{cal_link}} 📅",
+    "channel": ["whatsapp", "dm", "email"]
+  },
+  {
+    "name": "pris-förfrågan",
+    "trigger": ["vad kostar", "prisuppgift", "hur mycket", "offert", "pris"],
+    "body": "Hej {{name}}! Tack för din förfrågan. Vi skickar en offert inom 24h. Vill du boka ett kort samtal redan nu? {{cal_link}}",
+    "channel": ["whatsapp", "dm", "email"]
+  },
+  {
+    "name": "lead-välkomstsvar",
+    "trigger": ["intresserad", "mer info", "berätta mer", "höra mer"],
+    "body": "Hej {{name}}! Kul att höra från dig 🙌 Här är en kort video om hur vi jobbar: {{loom_url}} — Frågor? Boka ett samtal: {{cal_link}}",
+    "channel": ["whatsapp", "dm", "email"]
+  },
+  {
+    "name": "faktura-bekräftelse",
+    "trigger": ["faktura", "betalt", "betalning", "kvitto"],
+    "body": "Hej! Din faktura #{{invoice_no}} på {{amount}} kr är mottagen. Förfallodag: {{due_date}}. Tack! 🙏",
+    "channel": ["email"]
+  },
+  {
+    "name": "betalningspåminnelse",
+    "trigger": ["påminnelse"],
+    "body": "Hej {{name}}! Påminnelse om faktura #{{invoice_no}} på {{amount}} kr. Förfallodag: {{due_date}}. Frågor? Svara på detta mail.",
+    "channel": ["email"]
+  },
+  {
+    "name": "bekräftelse-bokning",
+    "trigger": ["bekräfta", "bokat", "bekräftad"],
+    "body": "Perfekt {{name}}! Din bokning är bekräftad: {{date}} kl {{time}}. Vi ses! 🔨",
+    "channel": ["whatsapp", "email"]
+  }
+]
