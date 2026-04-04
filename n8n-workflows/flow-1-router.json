@@ -1,0 +1,237 @@
+{
+  "name": "Flow 1 \u2014 Router (Webhook \u2192 api.py \u2192 Svar)",
+  "nodes": [
+    {
+      "id": "a1b2c3d4-e001",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {
+        "path": "router",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "notes": "NOD 1: Lyssnar pa POST-anrop pa /webhook/router. Tar emot JSON fran vad som helst: curl, WhatsApp, email-trigger etc. responseMode=responseNode = vi valjer sjalva nar vi skickar tillbaka svar."
+    },
+    {
+      "id": "a1b2c3d4-e002",
+      "name": "Normalisera Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "text",
+              "value": "={{ $json.body.text || $json.text || '' }}"
+            },
+            {
+              "name": "channel",
+              "value": "={{ $json.body.channel || $json.channel || 'webhook' }}"
+            },
+            {
+              "name": "customer_id",
+              "value": "={{ $json.body.customer_id || $json.customer_id || 'anon-webhook' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "notes": "NOD 2: Normaliserar inkommande data. Webhook skickar payload under $json.body, men andra triggers kanske inte gor det. Vi satter text, channel och customer_id som tydliga variabler att referera till. Allt efter denna nod anvander $json.text, $json.channel etc."
+    },
+    {
+      "id": "a1b2c3d4-e003",
+      "name": "API /generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/generate",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: $json.text, channel: $json.channel, customer_id: $json.customer_id, history: [] }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "notes": "NOD 3: Skickar meddelandet till din lokala api.py pa port 8000. Returnerar { response: '...', routing: { model, task_type, confidence, gate, is_lead, priority } }. Timeout satt till 30s for att hantera langsammare AI-modeller."
+    },
+    {
+      "id": "a1b2c3d4-e004",
+      "name": "Supabase \u2014 Logga Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://nfqoattrmxyjpugyccfh.supabase.co/rest/v1/leads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mcW9hdHRybXh5anB1Z3ljY2ZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4Mjk0MTcsImV4cCI6MjA5MDQwNTQxN30.hg6g5pUQs7wHL9MNc7vX0JZ3-5tyNEtI8mrj3zZJ2AM"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mcW9hdHRybXh5anB1Z3ljY2ZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4Mjk0MTcsImV4cCI6MjA5MDQwNTQxN30.hg6g5pUQs7wHL9MNc7vX0JZ3-5tyNEtI8mrj3zZJ2AM"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ customer_id: $('Normalisera Input').item.json.customer_id, channel: $('Normalisera Input').item.json.channel, text: $('Normalisera Input').item.json.text, response: $('API /generate').item.json.response, intent: (($('API /generate').item.json.routing) || {}).task_type || 'unknown', model_used: (($('API /generate').item.json.routing) || {}).model || 'unknown', status: (($('API /generate').item.json.routing) || {}).is_lead ? 'qualified' : 'new', is_lead: (($('API /generate').item.json.routing) || {}).is_lead || false, priority: (($('API /generate').item.json.routing) || {}).priority || 'medium', confidence: (($('API /generate').item.json.routing) || {}).confidence || null, gate: (($('API /generate').item.json.routing) || {}).gate || null }) }}",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "notes": "NOD 4: Loggar varje konversation till Supabase leads-tabellen INNAN vi svarar avsandaren. Vi refererar tillbaka till 'Normalisera Input' och 'API /generate' med $('Nod-namn').item.json. Prefer: return=minimal = Supabase svarar tomt (snabbt)."
+    },
+    {
+      "id": "a1b2c3d4-e005",
+      "name": "Template eller AI?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 300],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "check-routing-model",
+              "leftValue": "={{ $('API /generate').item.json.routing.model }}",
+              "rightValue": "template",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "notes": "NOD 5: Kollar om api.py routing-beslutet ar 'template'. True (vanster/gron): template-svar, snabbt och billigt. False (hoger/rod): AI-genererat svar (hermes/claude/qwen/kimi). Routing-beslutet kommer fran Hermes confidence-gate i api.py."
+    },
+    {
+      "id": "a1b2c3d4-e006",
+      "name": "Svara (Template)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 160],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ response: $('API /generate').item.json.response, model_used: 'template', routing: $('API /generate').item.json.routing }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "notes": "NOD 6a (True-branch): Skickar template-svaret tillbaka till den som anropade webhook. JSON-format: { response, model_used, routing }. Executar bara om IF-noden ar True (model == template)."
+    },
+    {
+      "id": "a1b2c3d4-e007",
+      "name": "Svara (AI-svar)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 440],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ response: $('API /generate').item.json.response, model_used: $('API /generate').item.json.routing.model, routing: $('API /generate').item.json.routing }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "notes": "NOD 6b (False-branch): Skickar AI-svaret tillbaka. model_used tas dynamiskt fran routing-beslutet (kan vara hermes/claude/qwen/kimi). Executar bara om IF-noden ar False (model != template)."
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalisera Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalisera Input": {
+      "main": [
+        [
+          {
+            "node": "API /generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API /generate": {
+      "main": [
+        [
+          {
+            "node": "Supabase \u2014 Logga Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase \u2014 Logga Lead": {
+      "main": [
+        [
+          {
+            "node": "Template eller AI?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Template eller AI?": {
+      "main": [
+        [
+          {
+            "node": "Svara (Template)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Svara (AI-svar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "id": "flow-1-router",
+  "meta": {
+    "description": "Tier-baserat AI-routingflode for smaforetag. Tar emot meddelanden via webhook, rostar genom api.py confidence-gate, loggar till Supabase och returnerar svar.",
+    "templateCredsSetupCompleted": true
+  }
+}

@@ -43,6 +43,11 @@ app.add_middleware(
 KEYWORD_RULES = [
     {
         "model": "template",
+        "task_type": "greeting",
+        "keywords": ["hej", "hallå", "hejsan", "tjena", "god dag", "god morgon", "god kväll", "good morning", "good afternoon"],
+    },
+    {
+        "model": "template",
         "task_type": "booking",
         "keywords": ["när kommer", "när kan ni", "boka tid", "bokning", "ledigt", "tillgänglig"],
     },
@@ -117,6 +122,26 @@ Historik: {history}
 HERMES_EXPECTED_KEYS = {
     "model", "task_type", "complexity", "confidence", "is_lead", "priority", "reason"
 }
+
+
+# ---------------------------------------------------------------------------
+# Template-hämtning
+# ---------------------------------------------------------------------------
+
+def _get_template_response(task_type: str) -> str:
+    """Hämtar svar från templates.json baserat på task_type."""
+    try:
+        with open("templates.json", "r", encoding="utf-8") as f:
+            templates = json.load(f)
+        for t in templates:
+            if t.get("name") == task_type or t.get("name") == f"{task_type}":
+                return t.get("body", "Hej! Hur kan jag hjälpa dig?")
+            # Fallback: matcha mot trigger-ord
+            if task_type in t.get("trigger", []):
+                return t.get("body", "Hej! Hur kan jag hjälpa dig?")
+    except Exception as e:
+        logger.warning(f"Kunde inte läsa templates.json: {e}")
+    return "Hej! 👋 Välkommen till oss. Hur kan jag hjälpa dig idag?"
 
 
 def call_hermes_router(message: str, channel: str, history: list) -> dict:
@@ -338,11 +363,13 @@ def generate_response(req: RouteRequest):
     chosen_model = routing["model"]
     suggested = routing.get("suggested_response")
 
-    # Om template → returnera direkt utan AI-anrop
+    # Om template → hämta från templates.json
     if chosen_model == "template":
+        task = routing.get("task_type", "")
+        template_response = _get_template_response(task)
         return {
             "routing": routing,
-            "response": suggested or "[MALL: fyll i från templates.json]",
+            "response": template_response,
             "model_used": "template",
             "tokens_used": 0,
         }

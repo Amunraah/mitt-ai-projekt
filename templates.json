@@ -1,5 +1,11 @@
 [
   {
+    "name": "hälsning",
+    "trigger": ["hej", "hallå", "hejsan", "tjena", "god dag"],
+    "body": "Hej! 👋 Välkommen till oss. Hur kan jag hjälpa dig idag?",
+    "channel": ["telegram", "whatsapp", "dm", "email"]
+  },
+  {
     "name": "bokning-tid",
     "trigger": ["när", "tid", "kommer", "ledigt", "tillgänglig", "boka", "bokning"],
     "body": "Hej {{name}}! Vi har ledigt {{next_slot}}. Boka direkt här: {{cal_link}} 📅",
