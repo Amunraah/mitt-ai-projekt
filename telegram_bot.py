@@ -89,6 +89,17 @@ def log_to_supabase(customer_id: str, text: str, response: str, routing: dict) -
 # /generate-anrop mot api.py
 # ---------------------------------------------------------------------------
 
+def call_chat(message: str, model: str = "hermes") -> str:
+    """Anropar /chat direkt — kringgår routing."""
+    with httpx.Client(timeout=30) as client:
+        r = client.post(
+            f"{API_URL}/chat",
+            json={"message": message, "model": model},
+        )
+        r.raise_for_status()
+        return r.json().get("response", "Inget svar.")
+
+
 def call_generate(message: str, customer_id: str, history: list) -> dict:
     """Anropar /generate och returnerar routing-beslut + svar."""
     with httpx.Client(timeout=30) as client:
@@ -132,7 +143,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Hej! 👋 Jag är din AI-assistent med smart routing.\n\n"
         "Kommandon:\n"
         "/status  — Visa system-info\n"
-        "/clear   — Rensa konversationshistorik\n\n"
+        "/clear   — Rensa konversationshistorik\n"
+        "/hermes  — Skriv direkt till Hermes-4 (ingen routing)\n\n"
         "Skriv ett meddelande så hjälper jag dig!"
     )
 
@@ -151,6 +163,27 @@ async def clear_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = str(update.effective_chat.id)
     _history[chat_id] = []
     await update.message.reply_text("Historik rensad. Ny konversation startad.")
+
+
+async def hermes_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Skriver direkt till Hermes-4, kringgår routing."""
+    text = " ".join(context.args)
+    if not text:
+        await update.message.reply_text(
+            "Användning: /hermes <din fråga>\n"
+            "Exempel: /hermes Vad är skillnaden på ROT och RUT?"
+        )
+        return
+    await update.message.chat.send_action(action="typing")
+    try:
+        response = call_chat(text, model="hermes")
+        if len(response) > 4000:
+            response = response[:3997] + "..."
+        await update.message.reply_text(response + "\n\n[hermes-4 | direkt]")
+    except httpx.ConnectError:
+        await update.message.reply_text("API-servern svarar inte. Kör: uvicorn api:app --port 8000")
+    except Exception as e:
+        await update.message.reply_text(f"Något gick fel: {str(e)[:200]}")
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -215,6 +248,7 @@ def main() -> None:
     app.add_handler(CommandHandler("start",  start))
     app.add_handler(CommandHandler("status", status_cmd))
     app.add_handler(CommandHandler("clear",  clear_cmd))
+    app.add_handler(CommandHandler("hermes", hermes_cmd))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     app.run_polling()
