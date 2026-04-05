@@ -1,0 +1,274 @@
+{
+  "name": "Flow 2 \u2014 Betalningsp\u00e5minnelser (M\u00e5ndag 09:00)",
+  "nodes": [
+    {
+      "id": "b2c3d4e5-f001",
+      "name": "Schema \u2014 M\u00e5ndag 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
+      },
+      "notes": "NOD 1: Startar automatiskt varje m\u00e5ndag kl 09:00. Cron: '0 9 * * 1' = minut 0, timme 9, alla dagar i m\u00e5naden, alla m\u00e5nader, dag 1 (m\u00e5ndag). Beh\u00f6ver inte k\u00f6ras manuellt n\u00e4r fl\u00f6det \u00e4r aktiverat."
+    },
+    {
+      "id": "b2c3d4e5-f002",
+      "name": "Ber\u00e4kna Cutoff-datum",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "cutoff",
+              "value": "={{ new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() }}"
+            },
+            {
+              "name": "today",
+              "value": "={{ new Date().toLocaleDateString('sv-SE') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "notes": "NOD 2: Ber\u00e4knar cutoff = nu minus 7 dagar i ISO-format (2026-03-29T09:00:00.000Z). Supabase REST API anv\u00e4nder ISO 8601 f\u00f6r datumj\u00e4mf\u00f6relser. Vi sparar ocks\u00e5 'today' f\u00f6r e-postens \u00e4mnesrad."
+    },
+    {
+      "id": "b2c3d4e5-f003",
+      "name": "H\u00e4mta Obetalda Leads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://nfqoattrmxyjpugyccfh.supabase.co/rest/v1/leads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mcW9hdHRybXh5anB1Z3ljY2ZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4Mjk0MTcsImV4cCI6MjA5MDQwNTQxN30.hg6g5pUQs7wHL9MNc7vX0JZ3-5tyNEtI8mrj3zZJ2AM"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mcW9hdHRybXh5anB1Z3ljY2ZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4Mjk0MTcsImV4cCI6MjA5MDQwNTQxN30.hg6g5pUQs7wHL9MNc7vX0JZ3-5tyNEtI8mrj3zZJ2AM"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "status",
+              "value": "eq.invoiced"
+            },
+            {
+              "name": "updated_at",
+              "value": "=lt.{{ $json.cutoff }}"
+            },
+            {
+              "name": "email",
+              "value": "not.is.null"
+            },
+            {
+              "name": "select",
+              "value": "id,customer_id,email,text,metadata,updated_at"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "notes": "NOD 3: Frågar Supabase REST API efter leads med:\n- status = 'invoiced' (fakturerade men ej betalda)\n- updated_at äldre än 7 dagar (cutoff från nod 2)\n- email inte null (måste ha e-postadress)\nReturnerar array av leads. Tom array = inga påminnelser att skicka."
+    },
+    {
+      "id": "b2c3d4e5-f004",
+      "name": "Har obetalda leads?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "check-length",
+              "leftValue": "={{ Array.isArray($json) ? $json.length : 1 }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "notes": "NOD 4: Kollar om Supabase returnerade n\u00e5gra leads. True = det finns leads att p\u00e5minna. False = inga leads, fl\u00f6det slutar h\u00e4r (inget e-post skickas). Viktigt f\u00f6r att undvika tomma loopk\u00f6rningar."
+    },
+    {
+      "id": "b2c3d4e5-f005",
+      "name": "Loopa per lead",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1120, 200],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "notes": "NOD 5: Delar upp arrayen av leads i en-och-en. Batch size 1 = bearbetar ett lead i taget. N8n k\u00f6r noderna 6 och 7 f\u00f6r varje lead separat. Utan denna nod skulle alla e-post sk\u00f6as till samma mottagare."
+    },
+    {
+      "id": "b2c3d4e5-f006",
+      "name": "Skicka P\u00e5minnelse",
+      "type": "n8n-nodes-base.sendEmail",
+      "typeVersion": 2,
+      "position": [1340, 200],
+      "parameters": {
+        "fromEmail": "din@gmail.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "=P\u00e5minnelse \u2014 Faktura {{ $json.metadata && $json.metadata.invoice_no ? $json.metadata.invoice_no : $json.id.substring(0,8) }}",
+        "emailType": "text",
+        "message": "=Hej!\n\nDet h\u00e4r \u00e4r en v\u00e4nlig p\u00e5minnelse om din utst\u00e5ende faktura.\n\nBelopp:      {{ $json.metadata && $json.metadata.amount ? $json.metadata.amount + ' kr' : 'Se bifogad faktura' }}\nF\u00f6rfallodag: {{ $json.metadata && $json.metadata.due_date ? $json.metadata.due_date : 'Se bifogad faktura' }}\n\nOm du redan har betalat \u00e4r detta meddelande utan betydelse.\nFr\u00e5gor? Svara direkt p\u00e5 detta mail.\n\nTack!\n",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-gmail",
+          "name": "Gmail SMTP"
+        }
+      },
+      "notes": "NOD 6: Skickar e-post via SMTP (Gmail App Password). \nKREDENTIALER: M\u00e5ste s\u00e4ttas upp f\u00f6rst i n8n:\n1. myaccount.google.com \u2192 S\u00e4kerhet \u2192 Applösenord\n2. Generera 16-tecken l\u00f6senord\n3. n8n: Credentials \u2192 New \u2192 SMTP\n   Host: smtp.gmail.com, Port: 587, User: din@gmail.com\n\nByta 'fromEmail' till din Gmail-adress."
+    },
+    {
+      "id": "b2c3d4e5-f007",
+      "name": "Uppdatera Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1560, 200],
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://nfqoattrmxyjpugyccfh.supabase.co/rest/v1/leads?id=eq.{{ $json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mcW9hdHRybXh5anB1Z3ljY2ZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4Mjk0MTcsImV4cCI6MjA5MDQwNTQxN30.hg6g5pUQs7wHL9MNc7vX0JZ3-5tyNEtI8mrj3zZJ2AM"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mcW9hdHRybXh5anB1Z3ljY2ZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4Mjk0MTcsImV4cCI6MjA5MDQwNTQxN30.hg6g5pUQs7wHL9MNc7vX0JZ3-5tyNEtI8mrj3zZJ2AM"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'reminder_sent', updated_at: new Date().toISOString() }) }}",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "notes": "NOD 7: Uppdaterar leadets status till 'reminder_sent' i Supabase. PATCH med ?id=eq.{{id}} = uppdatera bara denna specifika rad. updated_at sätts till nu = fl\u00f6det vet n\u00e4r p\u00e5minnelsen skickades. N\u00e4sta m\u00e5ndag k\u00f6rs INTE igen (updated_at är nu inom 7 dagar)."
+    }
+  ],
+  "connections": {
+    "Schema \u2014 M\u00e5ndag 09:00": {
+      "main": [
+        [
+          {
+            "node": "Ber\u00e4kna Cutoff-datum",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ber\u00e4kna Cutoff-datum": {
+      "main": [
+        [
+          {
+            "node": "H\u00e4mta Obetalda Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "H\u00e4mta Obetalda Leads": {
+      "main": [
+        [
+          {
+            "node": "Har obetalda leads?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Har obetalda leads?": {
+      "main": [
+        [
+          {
+            "node": "Loopa per lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Loopa per lead": {
+      "main": [
+        [
+          {
+            "node": "Skicka P\u00e5minnelse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skicka P\u00e5minnelse": {
+      "main": [
+        [
+          {
+            "node": "Uppdatera Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Schemalagd betalningsp\u00e5minnelse: varje m\u00e5ndag 09:00 h\u00e4mtas alla leads med status 'invoiced' \u00e4ldre \u00e4n 7 dagar \u2014 skickar e-post och uppdaterar status till 'reminder_sent'."
+  }
+}
