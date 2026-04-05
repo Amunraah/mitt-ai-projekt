@@ -18,10 +18,11 @@ client = OpenAI(
 
 # Model configurations
 MODELS = {
-    "hermes": os.getenv("DEFAULT_MODEL", "nousresearch/hermes-3-llama-3.1-70b"),
-    "claude": "anthropic/claude-3.5-sonnet",
-    "qwen": "qwen/qwen-2.5-72b-instruct",
-    "gpt4": "openai/gpt-4o",
+    "hermes": "nousresearch/hermes-3-llama-3.1-70b",   # Master Router + enkla svar
+    "claude": "anthropic/claude-3.5-sonnet",             # Offert, ROT/RUT, komplex analys
+    "qwen":   "qwen/qwen-2.5-72b-instruct",              # Strukturerad data-extraktion
+    "kimi":   "moonshotai/moonshot-v1-8k",               # Kod, skript, n8n-noder
+    "gpt4":   "openai/gpt-4o",                           # Reserv
 }
 
 
