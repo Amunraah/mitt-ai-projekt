@@ -129,11 +129,11 @@ def push_history(chat_id: str, role: str, content: str) -> None:
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
-        "Hej! Jag ar din AI-assistent med smart routing.\n\n"
+        "Hej! 👋 Jag är din AI-assistent med smart routing.\n\n"
         "Kommandon:\n"
-        "/status  - Visa system-info\n"
-        "/clear   - Rensa konversationshistorik\n\n"
-        "Skriv bara ett meddelande sa hjalper jag dig!"
+        "/status  — Visa system-info\n"
+        "/clear   — Rensa konversationshistorik\n\n"
+        "Skriv ett meddelande så hjälper jag dig!"
     )
 
 
@@ -192,7 +192,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
     except Exception as e:
         logger.error(f"handle_message-fel: {e}")
-        await update.message.reply_text(f"Nagot gick fel: {str(e)[:200]}")
+        await update.message.reply_text(f"Något gick fel: {str(e)[:200]}")
 
 
 # ---------------------------------------------------------------------------
