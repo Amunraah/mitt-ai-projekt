@@ -18,7 +18,7 @@ client = OpenAI(
 
 # Model configurations
 MODELS = {
-    "hermes": "nousresearch/hermes-3-llama-3.1-70b",   # Master Router + enkla svar
+    "hermes": "nousresearch/hermes-4-70b",               # Master Router + enkla svar
     "claude": "anthropic/claude-3.5-sonnet",             # Offert, ROT/RUT, komplex analys
     "qwen":   "qwen/qwen-2.5-72b-instruct",              # Strukturerad data-extraktion
     "kimi":   "moonshotai/moonshot-v1-8k",               # Kod, skript, n8n-noder
