@@ -4,6 +4,21 @@ Parametrisk 3D-modell av en liten slangavinda som hängs över kanten på en
 standard 11 kg gasoltub. Slangen rullar tillbaka av sig själv via en metall-
 klockfjäder och låses i utdraget läge med en spärrhake.
 
+## Renderingar
+
+| Vy | Bild |
+|---|---|
+| Sammansättning (iso) | `output/assembly_iso.png` |
+| Exploderad vy | `output/exploded_iso.png` |
+| Hållare | `output/hallare_iso.png` |
+| Trumma | `output/trumma_iso.png` |
+| Pawl | `output/pawl_iso.png` |
+| Slangöga | `output/slangoga_iso.png` |
+
+Ortografiska vyer av sammansättningen finns även som
+`assembly_front.png`, `assembly_side.png`, `assembly_top.png`. Generera om
+med `python render_images.py` om du ändrar parametrar.
+
 ## BOM (Bill of Materials)
 
 | Artikel | Antal | Anmärkning |
